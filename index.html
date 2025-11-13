@@ -135,6 +135,7 @@
       border-radius: 4px;
       cursor: pointer;
       transition: background 0.2s;
+      display: block;
     }
     .choice-option:hover {
       background: #e6f2ff;
@@ -212,18 +213,17 @@
       { file: 'audio/c22.wav' }
     ];
 
-    const INTRO_AUDIO = 'audio/intro.wav'; // "hi, how can I help you?"
+    const INTRO_AUDIO = 'audio/intro.wav';
 
     /* ===== GLOBAL STATE ===== */
-    let mediaRecorder = null;
-    let audioChunks = [];
     let participantId = null;
     let demographicsData = null;
-    let currentTimerInterval = null;
-    let isRecording = false;
     let currentTrialStartTime = null;
     let responseRecordingChunks = [];
     let responseMediaRecorder = null;
+    
+    // Store data that will be saved in on_finish
+    let trialDataStore = {};
 
     /* ===== INIT ===== */
     let jsPsych;
@@ -463,7 +463,7 @@
             <div class="vui-image">🎙️</div>
             
             <div style="margin: 30px 0;">
-              <button id="playBtn" onclick="window.playAudio()" 
+              <button id="playBtn" type="button"
                 style="font-size: 18px; padding: 15px 40px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
                 ▶️ 음성 재생
               </button>
@@ -477,7 +477,7 @@
               <h4>1. 이 음성이 얼마나 귀엽게 들리나요?</h4>
               <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin: 20px 0;">
                 <span>전혀 귀엽지 않음</span>
-                <input type="range" id="slider1" min="1" max="7" value="4" 
+                <input type="range" id="slider1" name="cuteness" min="1" max="7" value="4" 
                   style="width: 300px; cursor: pointer;">
                 <span>매우 귀여움</span>
               </div>
@@ -488,7 +488,7 @@
               <h4>2. 이 음성과 대화를 계속하고 싶나요?</h4>
               <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin: 20px 0;">
                 <span>전혀 그렇지 않음</span>
-                <input type="range" id="slider2" min="1" max="7" value="4" 
+                <input type="range" id="slider2" name="continue" min="1" max="7" value="4" 
                   style="width: 300px; cursor: pointer;">
                 <span>매우 그러함</span>
               </div>
@@ -529,10 +529,10 @@
                 위에서 응답을 선택해주세요
               </div>
               <div class="record-controls">
-                <button id="recordBtn" class="record-btn-main" onclick="window.handleRecord()" disabled>
+                <button id="recordBtn" type="button" class="record-btn-main" disabled>
                   🔴 녹음 시작
                 </button>
-                <button id="stopBtn" class="stop-btn-main" onclick="window.handleStop()" disabled>
+                <button id="stopBtn" type="button" class="stop-btn-main" disabled>
                   ⏹️ 녹음 종료
                 </button>
               </div>
@@ -547,7 +547,15 @@
         currentTrialStartTime = new Date().toISOString();
         const audioPath = jsPsych.timelineVariable('file');
         
-        // ✅ 수정: 전역 변수로 상태 추적
+        // Initialize trialDataStore for this trial
+        trialDataStore = {
+          slider1Value: 4,
+          slider2Value: 4,
+          responseChoice: null,
+          otherText: ''
+        };
+        
+        // State tracking
         window.trialState = {
           audioPlayed: false,
           slider1Moved: false,
@@ -559,7 +567,7 @@
         let recordingInProgress = false;
         let timerInterval = null;
         
-        // Initially hide submit button
+        // Hide submit button initially
         const submitBtn = document.querySelector('#jspsych-survey-html-form-next');
         if (submitBtn) submitBtn.style.display = 'none';
         
@@ -577,33 +585,33 @@
           'choice4': '계속하세요'
         };
         
-        // ✅ 수정: 오디오 재생 완료 이벤트 추가
-        window.playAudio = () => {
+        // Audio play handler
+        playBtn.addEventListener('click', () => {
           playBtn.disabled = true;
           audioStatus.textContent = '재생 중...';
           audioStatus.style.color = '#667eea';
           
           audioElement.play();
-          
-          // ✅ 재생 완료 시 상태 업데이트
-          audioElement.onended = () => {
-            audioStatus.textContent = '✅ 재생 완료';
-            audioStatus.style.color = '#28a745';
-            playBtn.disabled = false;
-            playBtn.textContent = '🔁 다시 듣기';
-            
-            window.trialState.audioPlayed = true;
-            checkSubmitReady();
-          };
-          
-          audioElement.onerror = () => {
-            audioStatus.textContent = '❌ 재생 오류';
-            audioStatus.style.color = '#dc3545';
-            playBtn.disabled = false;
-          };
-        };
+        });
         
-        // ✅ 수정: setTimeout으로 DOM 로드 대기 후 이벤트 리스너 연결
+        audioElement.addEventListener('ended', () => {
+          audioStatus.textContent = '✅ 재생 완료';
+          audioStatus.style.color = '#28a745';
+          playBtn.disabled = false;
+          playBtn.textContent = '🔁 다시 듣기';
+          
+          window.trialState.audioPlayed = true;
+          checkSubmitReady();
+        });
+        
+        audioElement.addEventListener('error', (e) => {
+          audioStatus.textContent = '❌ 재생 오류';
+          audioStatus.style.color = '#dc3545';
+          playBtn.disabled = false;
+          console.error('Audio error:', e);
+        });
+        
+        // Slider handlers - wait for DOM
         setTimeout(() => {
           const slider1 = document.getElementById('slider1');
           const slider2 = document.getElementById('slider2');
@@ -613,6 +621,7 @@
           if (slider1) {
             slider1.addEventListener('input', () => {
               slider1Value.textContent = slider1.value;
+              trialDataStore.slider1Value = parseInt(slider1.value);
               window.trialState.slider1Moved = true;
               checkSubmitReady();
             });
@@ -621,6 +630,7 @@
           if (slider2) {
             slider2.addEventListener('input', () => {
               slider2Value.textContent = slider2.value;
+              trialDataStore.slider2Value = parseInt(slider2.value);
               window.trialState.slider2Moved = true;
               checkSubmitReady();
             });
@@ -632,6 +642,7 @@
         radioButtons.forEach(radio => {
           radio.addEventListener('change', (e) => {
             window.trialState.choiceSelected = true;
+            trialDataStore.responseChoice = e.target.value;
             recordingSection.classList.add('visible');
             
             const recordBtn = document.getElementById('recordBtn');
@@ -643,24 +654,24 @@
             } else {
               otherTextInput.disabled = true;
               otherTextInput.value = '';
+              trialDataStore.otherText = '';
               selectedResponseDiv.textContent = `다음 내용을 말해주세요: ${responseTexts[e.target.id]}`;
               recordBtn.disabled = false;
             }
             
-            // Hide submit button until recording is done
             if (submitBtn) submitBtn.style.display = 'none';
             
-            // Scroll to recording section
             recordingSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            
             checkSubmitReady();
           });
         });
         
-        // Enable/disable record button based on other text input
+        // Other text input handler
         otherTextInput.addEventListener('input', () => {
           const recordBtn = document.getElementById('recordBtn');
           const choice5 = document.getElementById('choice5');
+          trialDataStore.otherText = otherTextInput.value;
+          
           if (choice5 && choice5.checked) {
             recordBtn.disabled = otherTextInput.value.trim() === '';
             if (otherTextInput.value.trim() !== '') {
@@ -669,13 +680,12 @@
           }
         });
         
-        // ✅ 수정: 제출 버튼 표시 조건 체크 함수
+        // Check if submit ready
         function checkSubmitReady() {
           const submitBtn = document.querySelector('#jspsych-survey-html-form-next');
           
           console.log('Check submit ready:', window.trialState);
           
-          // All conditions must be met
           if (window.trialState.audioPlayed && 
               window.trialState.slider1Moved && 
               window.trialState.slider2Moved && 
@@ -693,11 +703,12 @@
         }
         
         // Recording handlers
-        window.handleRecord = async () => {
+        const recordBtn = document.getElementById('recordBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        
+        recordBtn.addEventListener('click', async () => {
           if (recordingInProgress) return;
           
-          const recordBtn = document.getElementById('recordBtn');
-          const stopBtn = document.getElementById('stopBtn');
           const recordStatus = document.getElementById('recordStatus');
           const recordTimer = document.getElementById('recordTimer');
           
@@ -722,12 +733,11 @@
             console.error('Recording start error:', err);
             alert('녹음 시작 실패: ' + err.message);
           }
-        };
+        });
         
-        window.handleStop = async () => {
+        stopBtn.addEventListener('click', async () => {
           if (!recordingInProgress) return;
           
-          const stopBtn = document.getElementById('stopBtn');
           const recordStatus = document.getElementById('recordStatus');
           
           stopBtn.disabled = true;
@@ -776,20 +786,16 @@
             recordStatus.textContent = '❌ 오류: ' + err.message;
             recordStatus.style.color = '#dc3545';
           }
-        };
+        });
       },
       on_finish: (data) => {
-        const slider1 = document.getElementById('slider1');
-        const slider2 = document.getElementById('slider2');
-        const selectedChoice = document.querySelector('input[name="response_choice"]:checked');
-        const otherText = document.getElementById('otherText').value;
-        
+        // Use stored data instead of trying to access DOM
         data.task = 'rating';
         data.stimulus = jsPsych.timelineVariable('file');
-        data.cuteness_rating = parseInt(slider1.value);
-        data.continue_conversation = parseInt(slider2.value);
-        data.response_choice = selectedChoice ? selectedChoice.value : 'none';
-        data.other_text = selectedChoice && selectedChoice.id === 'choice5' ? otherText : '';
+        data.cuteness_rating = trialDataStore.slider1Value;
+        data.continue_conversation = trialDataStore.slider2Value;
+        data.response_choice = trialDataStore.responseChoice || 'none';
+        data.other_text = trialDataStore.otherText || '';
         data.trial_start_time = currentTrialStartTime;
         data.response_time = new Date().toISOString();
         data.user_agent = navigator.userAgent;
