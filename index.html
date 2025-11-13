@@ -253,16 +253,12 @@
       console.error('jsPsych init error:', error);
     }
 
-    const jsPsychHtmlButtonResponse = jsPsychPluginHtmlButtonResponse;
-    const jsPsychPreload = jsPsychPluginPreload;
-    const jsPsychSurveyHtmlForm = jsPsychPluginSurveyHtmlForm;
-
     /* ===== PRELOAD ===== */
     const audioFiles = STIMULI.map(s => s.file);
     if (INTRO_AUDIO) audioFiles.unshift(INTRO_AUDIO);
 
     const preload = {
-      type: jsPsychPreload,
+      type: jsPsychPluginPreload,
       audio: audioFiles,
       on_success: () => console.log('Preload success'),
       on_error: (file) => console.error('Preload error:', file)
@@ -270,7 +266,7 @@
 
     /* ===== WELCOME ===== */
     const welcome = {
-      type: jsPsychHtmlButtonResponse,
+      type: jsPsychPluginHtmlButtonResponse,
       stimulus: `<h2>VUI 상호작용 실험에 오신 것을 환영합니다</h2>
                  <p>이 실험에서는 음성 인터페이스의 응답을 듣고 평가하게 됩니다.</p>
                  <p>실험은 약 10분 정도 소요됩니다.</p>`,
@@ -279,7 +275,7 @@
 
     /* ===== DEMOGRAPHICS ===== */
     const demographics = {
-      type: jsPsychSurveyHtmlForm,
+      type: jsPsychPluginSurveyHtmlForm,
       html: `
         <div style="max-width: 500px; margin: 0 auto;">
           <h3>기본 정보</h3>
@@ -316,7 +312,7 @@
 
     /* ===== MIC PERMISSION ===== */
     const mic_permission = {
-      type: jsPsychHtmlButtonResponse,
+      type: jsPsychPluginHtmlButtonResponse,
       stimulus: `<h3>마이크 권한 요청</h3>
                  <p>이 실험에서는 음성 녹음이 필요합니다.</p>
                  <p>다음 버튼을 누르면 마이크 권한을 요청합니다.</p>`,
@@ -335,7 +331,7 @@
 
     /* ===== INTRO PAGE ===== */
     const intro_page = {
-      type: jsPsychHtmlButtonResponse,
+      type: jsPsychPluginHtmlButtonResponse,
       stimulus: `<h3>실험 안내</h3>
                  <p>각 시행에서 다음 단계를 진행합니다:</p>
                  <ol style="text-align:left; max-width:600px; margin:0 auto;">
@@ -456,7 +452,7 @@
 
     /* ===== RATING TRIAL ===== */
     const rating_trial = {
-      type: jsPsychSurveyHtmlForm,
+      type: jsPsychPluginSurveyHtmlForm,
       html: function() {
         const audioPath = jsPsych.timelineVariable('file');
         
@@ -818,7 +814,7 @@
 
     /* ===== END ===== */
     const end = {
-      type: jsPsychHtmlButtonResponse,
+      type: jsPsychPluginHtmlButtonResponse,
       stimulus: `<h2>감사합니다!</h2>
                  <p>실험이 완료되었습니다.</p>
                  <p>모든 데이터가 저장되었습니다.</p>`,
