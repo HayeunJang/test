@@ -454,7 +454,9 @@
     const rating_trial = {
       type: jsPsychSurveyHtmlForm,
       html: function() {
-        const audioPath = jsPsych.timelineVariable('file');
+        // Get the current timeline variable properly
+        const currentStimulus = jsPsych.evaluateTimelineVariable('file');
+        console.log('Audio path:', currentStimulus);
         
         return `
           <div style="max-width: 800px; margin: 0 auto; text-align: center;">
@@ -470,7 +472,7 @@
               <div id="audioStatus" style="margin-top: 15px; min-height: 24px; color: #666;"></div>
             </div>
             <audio id="trialAudio" preload="auto" style="display:none;">
-              <source src="${audioPath}" type="audio/wav">
+              <source src="${currentStimulus}" type="audio/wav">
             </audio>
 
             <div class="rating-prompt">
@@ -545,7 +547,8 @@
       button_label: '다음',
       on_load: function() {
         currentTrialStartTime = new Date().toISOString();
-        const audioPath = jsPsych.timelineVariable('file');
+        const audioPath = jsPsych.evaluateTimelineVariable('file');
+        console.log('on_load - Audio path:', audioPath);
         
         // Initialize trialDataStore for this trial
         trialDataStore = {
@@ -791,7 +794,7 @@
       on_finish: (data) => {
         // Use stored data instead of trying to access DOM
         data.task = 'rating';
-        data.stimulus = jsPsych.timelineVariable('file');
+        data.stimulus = jsPsych.evaluateTimelineVariable('file');
         data.cuteness_rating = trialDataStore.slider1Value;
         data.continue_conversation = trialDataStore.slider2Value;
         data.response_choice = trialDataStore.responseChoice || 'none';
